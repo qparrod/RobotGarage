@@ -6,7 +6,6 @@
 #define ERROR(arg) std::cerr<<arg<<std::cerr
 #else
 #include "Arduino.h"
-//#include <MsTimer2.h>
 #define PRINT(arg) Serial.println(arg)
 #define ERROR(arg) Serial.println(arg)
 
@@ -18,12 +17,6 @@ constexpr auto ECHO_PIN    = 17;
 //constexpr auto LED_PIN = 13; // conflict with motor shield
 
 #endif
-
-// return distance to obstacle in cm
-long distance()
-{
-    
-}
 
 template <class T>
 class Sensors {
@@ -175,7 +168,6 @@ class Robot {
     }
 
     inline void straight() noexcept {
-        // Rapidly-exploring random tree algorithm (RRT)?
         mgr->getMove()->straight(150);
     }
 
@@ -184,13 +176,15 @@ class Robot {
         mgr->getMove()->brake();
     }
 
-    inline void turnLeft() {
+    inline void turnLeft() noexcept {
         mgr->getMove()->turnLeft(100);
     }
 
-    inline void randomLeft() {
+    inline void randomLeft() noexcept {
         mgr->getMove()->turnLeft(random(100,200));
     }
+
+    // Rapidly-exploring random tree algorithm (RRT)?
 };
 
 
