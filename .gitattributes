@@ -1,3 +1,2 @@
 * linguist-vendored
-src/* linguist-documentation
-src/* linguist-language=C++
+*.cpp linguist-vendored=false
