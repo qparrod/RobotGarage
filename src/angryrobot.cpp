@@ -192,6 +192,11 @@ Robot* robot;
 unsigned long timer;
 #define INTERVAL 1000
 
+int greenled = 6;
+int redled=2;
+int orangeled = 4;
+int timeDelay = 250;
+
 void startInterruptionTimer() {
     noInterrupts();
     TCCR1A = 0;
@@ -217,9 +222,13 @@ void setup() {
     pinMode(ECHO_PIN, INPUT);
 
     startInterruptionTimer();
+
+    pinMode(redled, OUTPUT);
+    pinMode(orangeled, OUTPUT);
+    pinMode(greenled, OUTPUT);
+
+    digitalWrite(orangeled,LOW);
 }
-
-
 
 void loop() {
     if(Status::good != robot->status)
@@ -230,16 +239,30 @@ void loop() {
     //    timer += INTERVAL;
         auto dist = robot->readDistance();
         if (dist < 20 && dist > 0 ) {
+            digitalWrite(6,LOW);
+            digitalWrite(redled,HIGH);
             robot->brake();
-            delay(1000);
+            delay(500);
+            digitalWrite(redled,LOW);
+            
             //robot->turnLeft();
             robot->randomLeft();
-            delay(1000);
+            for(int i=0;i<=1000;i+=timeDelay) {
+              delay(timeDelay);
+              digitalWrite(orangeled,digitalRead(orangeled)^1);
+            }
             robot->brake();
-            delay(1000);
+            for(int i=0;i<=1000;i+=timeDelay) {
+              delay(timeDelay);
+              digitalWrite(orangeled,digitalRead(orangeled)^1);
+            }
         }
         else {
+            digitalWrite(greenled,HIGH);
             robot->straight();
+            digitalWrite(redled,LOW);
+            delay(1);
+            digitalWrite(greenled,LOW);
         }
     //}
 }
