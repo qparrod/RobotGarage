@@ -9,14 +9,35 @@
 #define PRINT(arg) Serial.println(arg)
 #define ERROR(arg) Serial.println(arg)
 
+// sound detector
+constexpr auto SOUND_PIN   = 17;
+constexpr auto SOUND_THRESHOLD = 500;
+
 // distance detector
-constexpr auto TRIGGER_PIN = 16; 
-constexpr auto ECHO_PIN    = 17;
+constexpr auto TRIGGER_PIN = 18; 
+constexpr auto ECHO_PIN    = 19;
+
+// buzzer
+constexpr auto BUZZER_PIN  = 10;
+
+// leds
+constexpr auto GREEN_LED_PIN = 6;
+constexpr auto RED_LED_PIN=2;
+constexpr auto ORANGE_LED_PIN = 4;
+constexpr auto BLUE_LED_PIN = 7;
+
+// motor pins
+// motor A
+//constexpr auto 12,9,3
+// motorB
+//constexpr auto 13,8,11
 
 // internal led
 //constexpr auto LED_PIN = 13; // conflict with motor shield
 
 #endif
+
+int timeDelay = 250;
 
 template <class T>
 class Sensors {
@@ -107,6 +128,12 @@ class Move {
         channelA->forward(speed);
         channelB->forward(speed);
     }
+
+    inline void reverse(size_t speed) noexcept {
+        channelA->backward(speed);
+        channelB->backward(speed);
+    }
+    
     inline void randomTurn() noexcept {
         PRINT(random(-100,100));
     }
@@ -169,11 +196,20 @@ class Robot {
 
     inline void straight() noexcept {
         mgr->getMove()->straight(150);
+        digitalWrite(RED_LED_PIN,LOW);
+        digitalWrite(GREEN_LED_PIN,LOW);
+    }
+
+    inline void reverse() noexcept {
+        mgr->getMove()->reverse(120);
+        digitalWrite(BUZZER_PIN,HIGH);
+        delay(1000);
+        digitalWrite(BUZZER_PIN,LOW);
     }
 
     inline void brake() noexcept {
-        PRINT("BRAKE");
         mgr->getMove()->brake();
+        delay(400);
     }
 
     inline void turnLeft() noexcept {
@@ -181,7 +217,11 @@ class Robot {
     }
 
     inline void randomLeft() noexcept {
-        mgr->getMove()->turnLeft(random(100,200));
+        mgr->getMove()->turnLeft(random(100,140));
+        for(int i=0;i<=3;i++) {
+          delay(timeDelay);
+          digitalWrite(ORANGE_LED_PIN,digitalRead(ORANGE_LED_PIN)^1);
+        }
     }
 
     // Rapidly-exploring random tree algorithm (RRT)?
@@ -189,13 +229,6 @@ class Robot {
 
 
 Robot* robot;
-unsigned long timer;
-#define INTERVAL 1000
-
-int greenled = 6;
-int redled=2;
-int orangeled = 4;
-int timeDelay = 250;
 
 void startInterruptionTimer() {
     noInterrupts();
@@ -215,56 +248,58 @@ void setup() {
     while (!Serial); 
     PRINT("setup");
     robot = new Robot();
-    timer = millis();
-    
-    //pinMode(LED_PIN, OUTPUT);
-    pinMode(TRIGGER_PIN, OUTPUT);
-    pinMode(ECHO_PIN, INPUT);
+
+    pinMode(SOUND_PIN,      INPUT);
+    pinMode(BUZZER_PIN,     OUTPUT);
+    pinMode(TRIGGER_PIN,    OUTPUT);
+    pinMode(ECHO_PIN,       INPUT);
+    pinMode(RED_LED_PIN,    OUTPUT);
+    pinMode(ORANGE_LED_PIN, OUTPUT);
+    pinMode(GREEN_LED_PIN,  OUTPUT);
+    pinMode(BLUE_LED_PIN,   OUTPUT);
 
     startInterruptionTimer();
-
-    pinMode(redled, OUTPUT);
-    pinMode(orangeled, OUTPUT);
-    pinMode(greenled, OUTPUT);
-
-    digitalWrite(orangeled,LOW);
 }
 
-void loop() {
-    if(Status::good != robot->status)
-        return;
-    
-    //if(millis()-timer>INTERVAL)
-    //{
-    //    timer += INTERVAL;
+bool blockingSituation = false;
+
+void loop()
+{
+        if(analogRead(SOUND_PIN) < SOUND_THRESHOLD) {
+          Serial.print("sound detected : ");
+          Serial.println(analogRead(SOUND_PIN));
+          digitalWrite(BLUE_LED_PIN, HIGH);
+          robot->brake();
+          delay(5000);
+          digitalWrite(BLUE_LED_PIN, LOW);
+        }
         auto dist = robot->readDistance();
         if (dist < 20 && dist > 0 ) {
-            digitalWrite(6,LOW);
-            digitalWrite(redled,HIGH);
+            PRINT("BRAKE");
+            blockingSituation;
+            digitalWrite(GREEN_LED_PIN,LOW);
+            digitalWrite(RED_LED_PIN,HIGH);
             robot->brake();
-            delay(500);
-            digitalWrite(redled,LOW);
+            digitalWrite(RED_LED_PIN,LOW);
             
-            //robot->turnLeft();
             robot->randomLeft();
-            for(int i=0;i<=1000;i+=timeDelay) {
-              delay(timeDelay);
-              digitalWrite(orangeled,digitalRead(orangeled)^1);
-            }
             robot->brake();
-            for(int i=0;i<=1000;i+=timeDelay) {
-              delay(timeDelay);
-              digitalWrite(orangeled,digitalRead(orangeled)^1);
-            }
+            dist = robot->readDistance();
         }
-        else {
-            digitalWrite(greenled,HIGH);
+
+        if (!(dist < 20 && dist > 0) ) {
+            blockingSituation = false;
+            digitalWrite(GREEN_LED_PIN,HIGH);
             robot->straight();
-            digitalWrite(redled,LOW);
-            delay(1);
-            digitalWrite(greenled,LOW);
         }
-    //}
+
+        if (blockingSituation) {
+            PRINT("BACKWARD");
+            robot->reverse();
+            robot->brake();
+            robot->randomLeft();
+            robot->brake();
+        }
 }
 
 ISR (TIMER1_COMPA_vect) 
